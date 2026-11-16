@@ -6,6 +6,9 @@
 #include <format>
 #include <vector>
 #include <algorithm>
+#include <chrono>
+using namespace std;
+using namespace std::chrono;
 
 int loadFile(std::ifstream& stream,std::string file);
 void searchStopTimes(std::string stop_id);
@@ -13,8 +16,10 @@ void searchStopTimes(std::string stop_id);
 std::ifstream stop_file;
 std::ifstream stop_times_file;
 
-    std::vector<time_t> time_vector;
+    std::vector<seconds> time_vector;
     std::string date_str;
+    std::chrono::time_point time_now = std::chrono::system_clock::now();
+    
     int hour = 0;
     int min = 0;
     int sec = 0;
@@ -22,19 +27,15 @@ std::ifstream stop_times_file;
 int main(int argc, char* argv[])
 {
 
+    const auto* tz = std::chrono::locate_zone("Europe/Madrid");
+    
+    // Convert system_clock time_point to zoned_time (respects DST)
+    std::chrono::zoned_time local_time{tz, time_now};
 
-    std::time_t time_now = std::time(nullptr);
+     date_str = std::format("{:%H:%M:%S}", time_now);
+    std::cout << date_str << '\n';
 
-    std::tm tm = *std::localtime(&time_now);
-
-    std::stringstream ss;
-
-    ss << std::put_time(&tm, "%H:%M:%S"); 
-
-
-    date_str = ss.str();
-    std::string busStop;
-    busStop = "PLAZA ELÍPTICA 4";
+    std::string busStop = "PLAZA ELÍPTICA 4";
     std::cout << date_str << std::endl;
     if (argc != 2) 
     { 
@@ -81,6 +82,7 @@ void searchStopTimes(std::string stop_id)
         {
             if(search.find(stop_id) != std::string::npos) 
             {
+                //std::cout << search << std::endl;
                 int lowerLimit = 0;
                 int upperLimit = 0;
             
@@ -91,30 +93,48 @@ void searchStopTimes(std::string stop_id)
             } 
             std::string departure_string = search.substr(lowerLimit + 1,(upperLimit - lowerLimit) - 1);
 
-            struct std::tm tm1;
-            std::istringstream ss1(departure_string);
-            ss1 >> std::get_time(&tm1, "%H:%M:%S");
-            std::time_t departure_time = mktime(&tm1);
-
-            struct std::tm tm2;
-            std::istringstream ss2(date_str);
-            ss2 >> std::get_time(&tm2, "%H:%M:%S");
-            std::time_t date_time = mktime(&tm2);
+            std::istringstream stream (departure_string);
+            std::chrono::seconds departure_time;
+            std::chrono::from_stream (stream, "%H:%M:%S", departure_time);
             
-            //std::cout<<date_time << "/" << departure_time<< " = " << difftime(departure_time,date_time) << std::endl;
-            if(difftime(departure_time,date_time) > 0)
+
+            std::istringstream stream_now (date_str);
+            std::chrono::seconds seconds_now;
+            std::chrono::from_stream (stream_now, "%H:%M:%S", seconds_now); 
+            
+            //std::cout << seconds_now << "/" << departure_time <<std::endl;
+            if( seconds_now <= departure_time)
             {
                 std::string travel_id = search.substr(0,search.find_first_of(',')); 
+                //std::cout << "Voy a insertar: " << std::format("{:%H:%M:%S}", departure_time) << std::endl;
                 time_vector.push_back(departure_time);
             }
             }
         } 
-
+        std::cout << time_vector.size() << std::endl;
         sort(time_vector.begin(), time_vector.end());
 
-            for(int i = 0; i < time_vector.size(); i++)
+        std::string first_string = std::format("{:%H:%M:%S}", time_vector[0]);
+        std::cout << first_string << '\n';
+
+       std::string second_string = std::format("{:%H:%M:%S}", time_vector[1]);
+        std::cout << second_string << '\n';
+
+        std::string third_string = std::format("{:%H:%M:%S}", time_vector[2]);
+        std::cout << third_string << '\n';
+        
+        //std::string first_string, second_string, third_string= "prueba";
+        std::cout << first_string << " " << second_string << " " << third_string << std::endl;
+        
+       stop_times_file.clear();
+       stop_times_file.seekg(5,std::ios::beg); //Returns pointer to start of file.
+        std::string search2;
+       while (std::getline(stop_times_file, search2))
+        {
+            if(search2.find(stop_id) != std::string::npos && (search2.find(first_string) != std::string::npos || search2.find(second_string) != std::string::npos ||  search2.find(third_string) != std::string::npos)) 
             {
-                std::tm tm = *std::localtime(&time_vector[i]);
-                std::cout << std::put_time(&tm, "%H:%M:%S") << std::endl;
+                //std::cout << search2 << std::endl;
             }
+        }
+            
 }
