@@ -23,16 +23,19 @@ void searchStopTimes(std::string stop_id);
 bool departure_sorter(departure const& lhs, departure const& rhs);
 departure searchDepartureInfo(departure departure);
 bool checkIfCorrectDay(string trip_id);
+bool checkExceptionDate(string service_id,int dayToCheck);
 
 std::ifstream stop_file;
 std::ifstream stop_times_file;
 std::ifstream trips_file;
 std::ifstream routes_file;
 std::ifstream calendar_file;
+std::ifstream calendar_dates_file;
 
 std::string date_str;
 std::chrono::zoned_time time_now{std::chrono::current_zone(), std::chrono::system_clock::now()};
 int dayOfWeek = stoi(std::format("{:%u}",time_now));
+string date_now = std::format("{:%Y%m%d}",time_now);
 
 int hour = 0;
 int min = 0;
@@ -42,10 +45,9 @@ int sec = 0;
 
 int main(int argc, char* argv[])
 {
-    date_str = std::format("{:%H:%M:%S}", time_now);
-
+    date_str = std::format("{:%X}", time_now);
     std::string busStop = "PLAZA ELÍPTICA 4";
-    std::cout << date_str << std::endl;
+    std::cout << "Current Date: " << std::format("{:%F:%T}", time_now) << " Bus stop: " << busStop << std::endl;
     if (argc != 2) 
     { 
         std::cerr << "Please add only one directory as a parameter";
@@ -56,15 +58,16 @@ int main(int argc, char* argv[])
     if(loadFile(trips_file ,std::string(argv[1]) + "/trips.txt") == 1){return 1;}
     if(loadFile(routes_file ,std::string(argv[1]) + "/routes.txt") == 1){return 1;}
     if(loadFile(calendar_file ,std::string(argv[1]) + "/calendar.txt") == 1){return 1;}
+    if(loadFile(calendar_dates_file ,std::string(argv[1]) + "/calendar_dates.txt") == 1){return 1;}
 
         std::string s;
         while (std::getline(stop_file, s))
         {
             if(s.find(busStop) != std::string::npos) // Finds the stop 
             {
-            std::cout << s << std::endl;
+            //std::cout << s << std::endl;
             std::string stop_id = s.substr(0,s.find_first_of(',')); //Find_first_of due to stop_id being the primary key
-            std::cout << stop_id << std::endl;
+            //std::cout << stop_id << std::endl;
             searchStopTimes(stop_id);
             }
         } 
@@ -91,7 +94,8 @@ int main(int argc, char* argv[])
         stop_times_file.close();
         trips_file.close();
         routes_file.close();
-        
+        calendar_file.close();
+        calendar_dates_file.close();
         return 0;
     }
 
@@ -241,6 +245,25 @@ bool checkIfCorrectDay(string trip_id)
                 dayToCheck = stoi(search2.substr(lowerLimit + 1,(upperLimit - lowerLimit) - 1));
             }
         }
-        return dayToCheck == 1;
+        return checkExceptionDate(service_id,dayToCheck);
+}
+
+bool checkExceptionDate(string service_id,int dayToCheck)
+{
+    trips_file.clear();
+    trips_file.seekg(0,std::ios::beg); //Returns pointer to start of file.
+    std::string search;
+    while (std::getline(trips_file, search))
+    {
+        if(search.find(service_id + ',') != std::string::npos && search.find(date_now + ',') != std::string::npos)
+        {
+            if(search.back() == 1)
+            {
+                return dayToCheck == 1;
+            }else return dayToCheck == 0;
+            
+        }
+    }
+    return dayToCheck == 1;
 }
 
