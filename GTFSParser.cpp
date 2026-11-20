@@ -257,7 +257,8 @@ bool checkExceptionDate(string service_id, int dayToCheck) //This function check
     {
         if (search.find(service_id + ',') != std::string::npos && search.find(date_now + ',') != std::string::npos)
         {
-            if (search.back() == 1) //It uses .back() due to the exception field being always the last character.
+             int exceptionService = stoi(search.substr(search.find_last_of(',') + 1,search.size()-1));
+            if (exceptionService == 1) //It uses .back() due to the exception field being always the last character.
             {
                 return dayToCheck != 1; //There exist an added service.
             }
